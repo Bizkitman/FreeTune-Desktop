@@ -1,260 +1,58 @@
 <script lang="ts">
+  type Track = {id: string; title: string; subtitle: string; thumbnail: string};
   let query = '';
-  let playing = false;
-  let progress = 0;
-  let volume = 70;
-
-  const results = Array.from({ length: 12 }, (_, i) => ({
-    id: i + 1,
-    title: `Track ${i + 1}`,
-    artist: `Artist ${i + 1}`,
-    duration: '3:24'
-  }));
-
-  function togglePlay() {
-    playing = !playing;
+  let loading = false;
+  let error = '';
+  let tracks: Track[] = [];
+  let selected: Track | null = null;
+  async function search() {
+    if (loading || !query.trim()) return;
+    loading = true; error = ''; tracks = []; selected = null;
+    try {
+      const api = (window as any).__TAURI__;
+      if (!api) throw new Error('Apri FreeTune come app desktop, non nel browser.');
+      tracks = await api.core.invoke('search_tracks', {query: query.trim()});
+    } catch (e) { error = e instanceof Error ? e.message : String(e); }
+    finally { loading = false; }
   }
 </script>
 
 <div class="app">
-  <aside class="sidebar">
-    <div class="brand">FreeTune</div>
-    <nav>
-      <button class="active">Home</button>
-      <button>Search</button>
-      <button>Library</button>
-      <button>Settings</button>
-    </nav>
-  </aside>
-
+  <aside><h1>FreeTune</h1><p>Cerca musica</p><small>YouTube Music<br />Integrazione sperimentale</small></aside>
   <main>
-    <header>
-      <input
-        type="text"
-        placeholder="Search songs, artists or albums..."
-        bind:value={query}
-      />
-    </header>
-
-    <section class="content">
-      <h2>Discover</h2>
-      <div class="grid">
-        {#each results as track (track.id)}
-          <article class="card">
-            <div class="cover"></div>
-            <h3>{track.title}</h3>
-            <p>{track.artist}</p>
-            <span>{track.duration}</span>
-          </article>
-        {/each}
-      </div>
-    </section>
+    <form on:submit|preventDefault={search}>
+      <input aria-label="Cerca musica" placeholder="Cerca un brano o un artista…" bind:value={query} maxlength="200" />
+      <button disabled={loading || !query.trim()}>{loading ? 'Ricerca…' : 'Cerca'}</button>
+    </form>
+    <h2>Ricerca YouTube Music</h2>
+    <p class="muted">Risultati reali, senza account. Riproduzione audio non ancora collegata.</p>
+    {#if loading}<p role="status">Connessione a YouTube Music…</p>{/if}
+    {#if error}<p class="error" role="alert">{error}</p>{/if}
+    <div class="grid">
+      {#each tracks as track (track.id)}
+        <button class="card" on:click={() => selected = track}>
+          {#if track.thumbnail}<img src={track.thumbnail} alt="" loading="lazy" />{:else}<div class="cover"></div>{/if}
+          <strong>{track.title}</strong><span>{track.subtitle}</span>
+        </button>
+      {/each}
+    </div>
   </main>
-
-  <footer class="player">
-    <div class="track">
-      <div class="mini-cover"></div>
-      <div>
-        <strong>Track 1</strong>
-        <p>Artist 1</p>
-      </div>
-    </div>
-
-    <div class="controls">
-      <button aria-label="Previous">⏮</button>
-      <button class="play" on:click={togglePlay}>
-        {playing ? '⏸' : '▶'}
-      </button>
-      <button aria-label="Next">⏭</button>
-    </div>
-
-    <div class="progress">
-      <input type="range" min="0" max="100" bind:value={progress} />
-    </div>
-
-    <div class="volume">
-      <span>🔊</span>
-      <input type="range" min="0" max="100" bind:value={volume} />
-    </div>
-  </footer>
+  <footer><strong>{selected ? selected.title : 'Nessun brano selezionato'}</strong><span>{selected ? selected.subtitle : 'Cerca un artista e premi Invio.'}</span><small>Player non ancora disponibile</small></footer>
 </div>
 
 <style>
-  :global(html, body) {
-    margin: 0;
-    height: 100%;
-    background: #0d1017;
-    color: #e8eaed;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  }
-
-  .app {
-    display: grid;
-    grid-template-columns: 240px 1fr;
-    grid-template-rows: 1fr 84px;
-    height: 100vh;
-    overflow: hidden;
-  }
-
-  .sidebar {
-    grid-row: 1 / 3;
-    background: #12151d;
-    border-right: 1px solid #232833;
-    padding: 24px 16px;
-  }
-
-  .brand {
-    font-size: 22px;
-    font-weight: 700;
-    color: #4c9dff;
-    margin-bottom: 32px;
-  }
-
-  nav {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  nav button {
-    text-align: left;
-    padding: 12px 14px;
-    border: 0;
-    border-radius: 10px;
-    background: transparent;
-    color: #aab2c0;
-    font-size: 15px;
-    cursor: pointer;
-  }
-
-  nav button:hover {
-    background: #1b202b;
-    color: #fff;
-  }
-
-  nav button.active {
-    background: #1d2735;
-    color: #fff;
-  }
-
-  main {
-    overflow-y: auto;
-    padding: 24px 32px;
-  }
-
-  header input {
-    width: 100%;
-    padding: 14px 18px;
-    border-radius: 12px;
-    border: 1px solid #2b3240;
-    background: #161a23;
-    color: #e8eaed;
-    font-size: 15px;
-    outline: none;
-  }
-
-  h2 {
-    margin: 28px 0 18px;
-    font-size: 22px;
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-    gap: 20px;
-  }
-
-  .card {
-    background: #161a23;
-    border: 1px solid #232833;
-    border-radius: 14px;
-    padding: 14px;
-  }
-
-  .cover {
-    aspect-ratio: 1;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #294b73, #101623);
-    margin-bottom: 12px;
-  }
-
-  .card h3 {
-    margin: 0;
-    font-size: 15px;
-  }
-
-  .card p {
-    margin: 4px 0 8px;
-    color: #9aa4b2;
-    font-size: 13px;
-  }
-
-  .card span {
-    color: #7d8794;
-    font-size: 12px;
-  }
-
-  .player {
-    grid-column: 2;
-    display: grid;
-    grid-template-columns: 220px 1fr 180px;
-    align-items: center;
-    gap: 20px;
-    padding: 0 24px;
-    background: #12151d;
-    border-top: 1px solid #232833;
-  }
-
-  .track {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .mini-cover {
-    width: 48px;
-    height: 48px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #294b73, #101623);
-  }
-
-  .track p {
-    margin: 2px 0 0;
-    color: #9aa4b2;
-    font-size: 12px;
-  }
-
-  .controls {
-    display: flex;
-    justify-content: center;
-    gap: 14px;
-  }
-
-  .controls button {
-    width: 40px;
-    height: 40px;
-    border: 0;
-    border-radius: 50%;
-    background: #1d2735;
-    color: #e8eaed;
-    font-size: 15px;
-    cursor: pointer;
-  }
-
-  .controls .play {
-    background: #4c9dff;
-    color: #06121f;
-  }
-
-  .progress input,
-  .volume input {
-    width: 100%;
-    accent-color: #4c9dff;
-  }
-
-  .volume {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+  :global(*){box-sizing:border-box}
+  :global(body){margin:0;background:#0d1017;color:#e8eaed;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+  .app{display:grid;grid-template-columns:210px minmax(0,1fr);grid-template-rows:minmax(0,1fr) 100px;height:100vh}
+  aside{padding:28px 20px;background:#12151d;border-right:1px solid #293140}h1{color:#65acff;margin:0 0 35px;font-size:25px}
+  small,.muted,.card span,footer span{color:#aab2c0}small{line-height:1.6}
+  main{padding:28px;overflow:auto;min-width:0}form{display:flex;gap:12px}
+  input{flex:1;min-width:0;background:#161a23;border:1px solid #354055;border-radius:12px;color:white;padding:14px;font:inherit}
+  button{font:inherit;cursor:pointer}form button{background:#65acff;border:0;border-radius:12px;padding:12px 24px;color:#071321}button:disabled{opacity:.5;cursor:wait}
+  h2{margin-top:30px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px}
+  .card{text-align:left;padding:12px;background:#161a23;color:white;border:1px solid #293140;border-radius:14px;display:flex;flex-direction:column;gap:9px;min-width:0}.card:hover{border-color:#65acff}
+  .card img,.cover{width:100%;aspect-ratio:1;object-fit:cover;border-radius:9px;background:#25374a}.card span{font-size:13px}
+  .error{padding:16px;background:#382026;border:1px solid #995563;border-radius:10px;overflow-wrap:anywhere}
+  footer{grid-column:1/-1;padding:14px 28px;background:#12151d;border-top:1px solid #293140;display:flex;flex-direction:column;gap:5px;overflow:auto}footer span{font-size:13px}
+  @media(max-width:700px){.app{grid-template-columns:1fr}aside{display:none}main{padding:18px}}
 </style>

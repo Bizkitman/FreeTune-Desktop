@@ -10,21 +10,9 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      {
-        "title": "FreeTune",
-        "width": 1100,
-        "height": 720,
-        "resizable": true
-      }
-    ],
-    "security": {
-      "csp": null
-    }
+    "withGlobalTauri": true,
+    "windows": [{"title":"FreeTune","width":1100,"height":720,"resizable":true}],
+    "security": {"csp":null}
   },
-  "bundle": {
-    "active": true,
-    "targets": ["dmg", "nsis"],
-    "icon": []
-  }
+  "bundle": {"active":true,"targets":["dmg","nsis"],"icon":[]}
 }
