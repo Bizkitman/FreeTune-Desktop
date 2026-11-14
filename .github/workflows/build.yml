@@ -5,24 +5,51 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  build:
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  macos:
+    runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
       - name: Install frontend dependencies
         run: npm install
-      - name: Build Tauri app
-        run: npm run tauri build
+      - name: Build universal macOS app
+        run: npm run tauri build -- --target universal-apple-darwin --bundles dmg
+      - name: Verify both executable architectures
+        run: |
+          APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/FreeTune.app/Contents/MacOS/freetune-desktop"
+          file "$APP"
+          lipo -verify_arch x86_64 arm64 "$APP"
       - uses: actions/upload-artifact@v4
         with:
-          name: freetune-${{ matrix.os }}
-          path: |
-            src-tauri/target/release/bundle/**/*
+          name: FreeTune-macOS-Universal
+          if-no-files-found: error
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Install frontend dependencies
+        run: npm install
+      - name: Build Windows installer
+        run: npm run tauri build -- --target x86_64-pc-windows-msvc --bundles nsis
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FreeTune-Windows-x64
+          if-no-files-found: error
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
