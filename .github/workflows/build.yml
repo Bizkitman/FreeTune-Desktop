@@ -25,9 +25,16 @@ jobs:
         run: npm run tauri build -- --target universal-apple-darwin --bundles dmg
       - name: Verify both executable architectures
         run: |
-          APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/FreeTune.app/Contents/MacOS/freetune-desktop"
-          file "$APP"
-          lipo -verify_arch x86_64 arm64 "$APP"
+          set -euo pipefail
+          BINARY="src-tauri/target/universal-apple-darwin/release/freetune-desktop"
+          if [ ! -f "$BINARY" ]; then
+            echo "Universal executable not found. Build output:"
+            find src-tauri/target -type f -name freetune-desktop -print
+            exit 1
+          fi
+          file "$BINARY"
+          lipo "$BINARY" -info
+          lipo "$BINARY" -verify_arch x86_64 arm64
       - uses: actions/upload-artifact@v4
         with:
           name: FreeTune-macOS-Universal
